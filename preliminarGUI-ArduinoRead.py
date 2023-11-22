@@ -13,7 +13,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Arduino Signal Animation")
-
+        print("aqui")
         # Create the main widget
         main_widget = QWidget(self)
         self.setCentralWidget(main_widget)
