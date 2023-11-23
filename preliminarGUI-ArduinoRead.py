@@ -13,7 +13,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Arduino Signal Animation")
-        print("aqui")
+
         # Create the main widget
         main_widget = QWidget(self)
         self.setCentralWidget(main_widget)
@@ -40,6 +40,8 @@ class PlotWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.addWidget(self.canvas)
 
+        self.data_buffer = np.zeros(100)
+
         self.plot_line, = self.ax.plot([], [])
         self.animation = FuncAnimation(self.figure, self.update_plot, blit=True, interval=50)
 
@@ -50,7 +52,6 @@ class PlotWidget(QWidget):
         # Create a Serial object to communicate with Arduino
         self.arduino = serial.Serial(self.serial_port, 9600, timeout=1)
         # time.sleep(2)  # Removed, but may be necessary depending on your Arduino's behavior
-        self.data_buffer = np.zeros(100)
 
         # QTimer to update Arduino data
         self.timer = QTimer(self)
@@ -74,10 +75,10 @@ class PlotWidget(QWidget):
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
 
-    def update_plot(self):
+    def update_plot(self, aux):
         x = np.arange(len(self.data_buffer))
         y = self.data_buffer
-
+        print(aux)
         self.plot_line.set_data(x, y)
         return self.plot_line,
 

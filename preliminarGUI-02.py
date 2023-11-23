@@ -1,169 +1,12 @@
 import sys
 import serial
 import numpy as np
+import openpyxl
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.animation import FuncAnimation
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QMessageBox
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton
 from PyQt5.QtCore import QTimer
-
-
-class Ui_MainWindow(object):
-    def setupUi(self, MainWindow):
-        MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(1200, 600)
-        print("sim")
-        self.centralwidget = QtWidgets.QWidget(MainWindow)
-        self.centralwidget.setObjectName("centralwidget")
-        self.pushButtonCalibration = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButtonCalibration.setGeometry(QtCore.QRect(10, 170, 101, 24))
-        self.pushButtonCalibration.setObjectName("pushButtonCalibration")
-        self.graphicsView = QtWidgets.QGraphicsView(self.centralwidget)
-        self.graphicsView.setGeometry(QtCore.QRect(310, 40, 441, 192))
-        self.graphicsView.setObjectName("graphicsView")
-        self.graphicsView_2 = QtWidgets.QGraphicsView(self.centralwidget)
-        self.graphicsView_2.setGeometry(QtCore.QRect(310, 290, 441, 192))
-        self.graphicsView_2.setObjectName("graphicsView_2")
-        self.labelTests = QtWidgets.QLabel(self.centralwidget)
-        self.labelTests.setGeometry(QtCore.QRect(860, 40, 71, 21))
-        font = QtGui.QFont()
-        font.setPointSize(12)
-        self.labelTests.setFont(font)
-        self.labelTests.setObjectName("labelTests")
-        self.pushButtonStart = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButtonStart.setGeometry(QtCore.QRect(10, 340, 101, 24))
-        self.pushButtonStart.setObjectName("pushButtonStart")
-        # error popup test
-        self.pushButtonError = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButtonError.setGeometry(QtCore.QRect(850, 80, 101, 24))
-        self.pushButtonError.setObjectName("pushButtonError")
-
-        self.labelCalibration = QtWidgets.QLabel(self.centralwidget)
-        self.labelCalibration.setGeometry(QtCore.QRect(150, 150, 101, 16))
-        self.labelCalibration.setObjectName("labelCalibration")
-        self.labelSetup = QtWidgets.QLabel(self.centralwidget)
-        self.labelSetup.setGeometry(QtCore.QRect(190, 10, 49, 16))
-        self.labelSetup.setObjectName("labelSetup")
-        self.pushButtonSettings = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButtonSettings.setGeometry(QtCore.QRect(10, 30, 101, 24))
-        self.pushButtonSettings.setObjectName("pushButtonSettings")
-        self.labelPlaceHolder1 = QtWidgets.QLabel(self.centralwidget)
-        self.labelPlaceHolder1.setGeometry(QtCore.QRect(310, 40, 441, 191))
-        self.labelPlaceHolder1.setText("Press Calibration")
-        # self.labelPlaceHolder1.setPixmap(QtGui.QPixmap("ImagemModelo1.png"))
-        self.labelPlaceHolder1.setScaledContents(True)
-        self.labelPlaceHolder1.setObjectName("labelPlaceHolder1")
-        self.labelPlaceHolder2 = QtWidgets.QLabel(self.centralwidget)
-        self.labelPlaceHolder2.setGeometry(QtCore.QRect(310, 290, 441, 201))
-        self.labelPlaceHolder2.setText("Press Start")
-        # self.labelPlaceHolder2.setPixmap(QtGui.QPixmap("ImagemModelo2.png"))
-        self.labelPlaceHolder2.setScaledContents(True)
-        self.labelPlaceHolder2.setObjectName("labelPlaceHolder2")
-        MainWindow.setCentralWidget(self.centralwidget)
-        self.menubar = QtWidgets.QMenuBar(MainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 1001, 22))
-        self.menubar.setObjectName("menubar")
-        self.menuFile = QtWidgets.QMenu(self.menubar)
-        self.menuFile.setObjectName("menuFile")
-        self.menuNew = QtWidgets.QMenu(self.menuFile)
-        self.menuNew.setObjectName("menuNew")
-        self.menuEdit = QtWidgets.QMenu(self.menubar)
-        self.menuEdit.setObjectName("menuEdit")
-        MainWindow.setMenuBar(self.menubar)
-        self.statusbar = QtWidgets.QStatusBar(MainWindow)
-        self.statusbar.setObjectName("statusbar")
-        MainWindow.setStatusBar(self.statusbar)
-        self.actionPatient = QtWidgets.QAction(MainWindow)
-        self.actionPatient.setObjectName("actionPatient")
-        self.actionMeasure = QtWidgets.QAction(MainWindow)
-        self.actionMeasure.setObjectName("actionMeasure")
-        self.actionSave = QtWidgets.QAction(MainWindow)
-        self.actionSave.setObjectName("actionSave")
-        self.actionSaveAs = QtWidgets.QAction(MainWindow)
-        self.actionSaveAs.setObjectName("actionSaveAs")
-        self.actionCopy = QtWidgets.QAction(MainWindow)
-        self.actionCopy.setObjectName("actionCopy")
-        self.actionImport = QtWidgets.QAction(MainWindow)
-        self.actionImport.setObjectName("actionImport")
-        self.actionExport = QtWidgets.QAction(MainWindow)
-        self.actionExport.setObjectName("actionExport")
-        self.menuNew.addAction(self.actionPatient)
-        self.menuNew.addAction(self.actionMeasure)
-        self.menuFile.addAction(self.menuNew.menuAction())
-        self.menuFile.addAction(self.actionSave)
-        self.menuFile.addAction(self.actionSaveAs)
-        self.menuFile.addAction(self.actionImport)
-        self.menuFile.addAction(self.actionExport)
-        self.menuEdit.addAction(self.actionCopy)
-        self.menubar.addAction(self.menuFile.menuAction())
-        self.menubar.addAction(self.menuEdit.menuAction())
-
-        self.retranslateUi(MainWindow)
-        QtCore.QMetaObject.connectSlotsByName(MainWindow)
-
-        self.actionPatient.triggered.connect(lambda: self.clicked("New Pacient"))
-        self.actionMeasure.triggered.connect(lambda: self.clicked("New Measure"))
-        self.actionSave.triggered.connect(lambda: self.clicked("Save"))
-        self.actionSaveAs.triggered.connect(lambda: self.clicked("Save As..."))
-        self.actionImport.triggered.connect(lambda: self.clicked("Import"))
-        self.actionExport.triggered.connect(lambda: self.clicked("Export"))
-        self.actionCopy.triggered.connect(lambda: self.clicked("Copy"))
-
-        self.pushButtonCalibration.clicked.connect(self.press_calibration)
-        self.pushButtonStart.clicked.connect(self.press_start)
-        self.pushButtonError.clicked.connect(self.error_popup)
-
-    def retranslateUi(self, MainWindow):
-        _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
-        self.pushButtonCalibration.setText(_translate("MainWindow", "Calibration"))
-        self.labelTests.setText(_translate("MainWindow", "Test"))
-        self.pushButtonStart.setText(_translate("MainWindow", "Start"))
-        self.pushButtonError.setText(_translate("MainWindow", "Error"))
-        self.labelCalibration.setText(_translate("MainWindow", "Calibration Values"))
-        self.labelSetup.setText(_translate("MainWindow", "Setup"))
-        self.pushButtonSettings.setText(_translate("MainWindow", "Settings"))
-        self.menuFile.setTitle(_translate("MainWindow", "File"))
-        self.menuNew.setTitle(_translate("MainWindow", "New"))
-        self.menuEdit.setTitle(_translate("MainWindow", "Edit"))
-        self.actionPatient.setText(_translate("MainWindow", "Patient"))
-        self.actionPatient.setStatusTip(_translate("MainWindow", "Create a new patient file"))
-        self.actionPatient.setShortcut(_translate("MainWindow", "Ctrl+N"))
-        self.actionMeasure.setText(_translate("MainWindow", "Measure"))
-        self.actionMeasure.setStatusTip(_translate("MainWindow", "Create another measure"))
-        self.actionMeasure.setShortcut(_translate("MainWindow", "Ctrl+Shift+N"))
-        self.actionSave.setText(_translate("MainWindow", "Save"))
-        self.actionSave.setShortcut(_translate("MainWindow", "Ctrl+S"))
-        self.actionSaveAs.setText(_translate("MainWindow", "Save As..."))
-        self.actionSaveAs.setShortcut(_translate("MainWindow", "Ctrl+Shift+S"))
-        self.actionCopy.setText(_translate("MainWindow", "Copy"))
-        self.actionImport.setText(_translate("MainWindow", "Import"))
-        self.actionImport.setShortcut(_translate("MainWindow", "Ctrl+I"))
-        self.actionExport.setText(_translate("MainWindow", "Export"))
-
-    def clicked(self, text):
-        self.labelTests.setText(text)
-        self.labelTests.adjustSize()
-
-    def press_calibration(self):
-        self.labelPlaceHolder1.setPixmap(QtGui.QPixmap("ImagemModelo1.png"))
-
-
-    def press_start(self):
-        self.labelPlaceHolder2.setPixmap(QtGui.QPixmap("ImagemModelo2.png"))
-
-    def error_popup(self):
-        errorpopup = QMessageBox()
-        errorpopup.setWindowTitle("Error Test")
-        errorpopup.setText("Verify Arduino connection, or something")
-        errorpopup.setIcon(QMessageBox.Question)
-        errorpopup.setStandardButtons(QMessageBox.Retry|QMessageBox.Cancel)
-        errorpopup.setInformativeText("Maybe you should try to fix our Arduino connection")
-        errorpopup.buttonClicked(self.error_buttons)
-        aux = errorpopup.exec_()
-
-    def error_buttons(self, i):
-        pass
 
 
 class MainWindow(QMainWindow):
@@ -175,17 +18,69 @@ class MainWindow(QMainWindow):
         main_widget = QWidget(self)
         self.setCentralWidget(main_widget)
 
-        # Create a vertical layout for the main widget
-        layout = QVBoxLayout(main_widget)
+        # Main layout (horizontal) to split the window
+        main_layout = QHBoxLayout(main_widget)
 
-        # Create a custom widget to host the Matplotlib plot
+        # Create a widget with buttons on the left side
+        button_widget = QWidget()
+        button_layout = QVBoxLayout(button_widget)
+
+        # Add buttons
+        self.start_button = QPushButton("Start Recording")
+        self.pause_button = QPushButton("Export")
+
+        # Connect buttons to functions
+        self.start_button.clicked.connect(self.toggle_recording)
+        self.pause_button.clicked.connect(self.export_to_excel)
+
+        # Add buttons to the widget's layout
+        button_layout.addWidget(self.start_button)
+        button_layout.addWidget(self.pause_button)
+
+        # Add button widget to the main layout
+        main_layout.addWidget(button_widget)
+
+        # Create a widget with the plot on the right side
         self.plot_widget = PlotWidget()
 
-        # Add the plot widget to the layout
-        layout.addWidget(self.plot_widget)
+        # Add the plot to the main layout
+        main_layout.addWidget(self.plot_widget)
 
-        # Set the layout for the main widget
-        main_widget.setLayout(layout)
+        # Set up the main layout
+        main_widget.setLayout(main_layout)
+
+    def toggle_recording(self):
+        if self.start_button.text() == "Start Recording":
+            self.start_button.setText("Stop Recording")
+            self.plot_widget.start_recording()
+        else:
+            self.start_button.setText("Start Recording")
+            crucial_data = self.plot_widget.stop_recording()
+            self.export_to_excel(crucial_data, patient="John Doe")
+
+    def export_to_excel(self, crucial, patient):
+        # Create a new Excel workbook and select the active sheet
+        wb = openpyxl.Workbook()
+        sheet = wb.active
+
+        # Sample data to export
+        data = [
+            ["Name", "Strength Peak", "Development of Strength", "Decline Rate"],
+            [patient, crucial[0], crucial[1], crucial[2]],
+        ]
+
+        # Write data to the Excel sheet
+        for row_data in data:
+            sheet.append(row_data)
+
+        # Specify the full path where you want to save the Excel file
+        file_path = r"D:\UDESC\TCC\Programas\GUIpreliminar\dados_do_paciente.xlsx"
+
+        # Save the workbook to the specified file path
+        wb.save(file_path)
+
+        print(f"Data exported to Excel file: {file_path}")
+
 
 class PlotWidget(QWidget):
     def __init__(self):
@@ -196,33 +91,82 @@ class PlotWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.addWidget(self.canvas)
 
-        self.plot_line, = self.ax.plot([], [])
-        self.animation = FuncAnimation(self.figure, self.update_plot, blit=True, interval=50)
+        self.data_buffer = np.zeros(1000)
+        self.recording = False
 
-        self.ax.set_xlim(0, 100)  # Assuming 100 data points
+        self.plot_line, = self.ax.plot([], [])
+        self.animation = FuncAnimation(self.figure, self.update_plot, blit=True, interval=10, cache_frame_data=True)
+
+        self.ax.set_xlim(0, 1000)  # Assuming 1000 data points
         self.ax.set_ylim(0, 1024)  # Assuming analog values range from 0 to 1023
 
         self.serial_port = "COM5"
         # Create a Serial object to communicate with Arduino
-        self.arduino = serial.Serial(self.serial_port, 9600, timeout=1)
-        # time.sleep(2)  # Removed, but may be necessary depending on your Arduino's behavior
-        self.data_buffer = np.zeros(100)
+        self.arduino = serial.Serial(self.serial_port, 115200, timeout=1)
 
         # QTimer to update Arduino data
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_arduino_data)
-        self.timer.start(50)  # Update data every 50 ms
+        self.timer.start(10)  # Update data every 20 ms
+
+        self.peak_value = 0
+        self.peak_index = 0
+
+    def start_recording(self):
+        self.recording = True
+
+    def stop_recording(self):
+        self.recording = False
+
+        # Find peak index using np.argmax
+        self.peak_index = np.argmax(self.data_buffer)
+        # Extract and return relevant data for export
+        crucial_data = [
+            round(float(self.peak_value), 1),
+            round(float(self.calculate_gradient_to_peak()), 1),
+            round(float(self.calculate_gradient_after_peak()), 1),
+        ]
+
+        # Reset peak value and index
+        self.peak_value = 0
+        self.peak_index = 0
+
+        return crucial_data
+
+    def calculate_gradient_to_peak(self):
+        if self.peak_index == 0:
+            return 0  # Cannot calculate gradient without a peak
+
+        # Calculate the gradient from the bottom to the peak using np.mean(np.gradient())
+        gradient = np.mean(np.gradient(self.data_buffer[: self.peak_index + 1]))
+        return gradient
+
+    def calculate_gradient_after_peak(self):
+        if self.peak_index == 0:
+            return 0  # Cannot calculate gradient without a peak
+
+        # Calculate the gradient from the peak to the next 3 seconds of the signal using np.mean(np.gradient())
+        x1 = self.peak_index
+        x2 = self.peak_index + 100  # Assuming 3 seconds with 50 data points per second
+        gradient = np.mean(np.gradient(self.data_buffer[x1:x2 + 1]))
+        return gradient
 
     def update_arduino_data(self):
         try:
             # Read value from pin A2 directly
-            value = int(self.arduino.readline().decode('utf-8').strip())
-            # Display the read value from pin A2
-            print(f"Value from pin A2: {value}")
+            data_str = self.arduino.readline().decode('utf-8').strip()
 
-            # Update the data buffer
-            self.data_buffer = np.roll(self.data_buffer, -1)
-            self.data_buffer[-1] = value
+            if data_str:
+                value = int(data_str)
+                # Update the data buffer if recording
+                if self.recording:
+                    self.data_buffer = np.roll(self.data_buffer, -1)
+                    self.data_buffer[-1] = value
+
+                    # Update peak value and index if a new peak is found
+                    if value > self.peak_value:
+                        self.peak_value = value
+                        self.peak_index = len(self.data_buffer) - 1
 
         except KeyboardInterrupt:
             # Close the serial communication when pressing Ctrl+C
@@ -231,18 +175,19 @@ class PlotWidget(QWidget):
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
 
-    def update_plot(self, frame):
+    def update_plot(self, _):
         x = np.arange(len(self.data_buffer))
         y = self.data_buffer
-
         self.plot_line.set_data(x, y)
         return self.plot_line,
+
 
 def main():
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
-    sys.exit(app.exec_())
+    app.exec_()
+
 
 if __name__ == "__main__":
     main()
