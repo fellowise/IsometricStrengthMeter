@@ -5,7 +5,7 @@ import openpyxl
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.animation import FuncAnimation
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QComboBox
 from PyQt5.QtCore import QTimer
 
 
@@ -29,6 +29,10 @@ class MainWindow(QMainWindow):
         self.start_button = QPushButton("Start Recording")
         self.pause_button = QPushButton("Export")
 
+        # Add a combo box for selecting the max time
+        self.max_time_combobox = QComboBox()
+        self.max_time_combobox.addItems(["3 seconds", "5 seconds", "10 seconds"])
+
         # Connect buttons to functions
         self.start_button.clicked.connect(self.toggle_recording)
         self.pause_button.clicked.connect(self.export_to_excel)
@@ -36,6 +40,7 @@ class MainWindow(QMainWindow):
         # Add buttons to the widget's layout
         button_layout.addWidget(self.start_button)
         button_layout.addWidget(self.pause_button)
+        button_layout.addWidget(self.max_time_combobox)
 
         # Add button widget to the main layout
         main_layout.addWidget(button_widget)
@@ -53,6 +58,11 @@ class MainWindow(QMainWindow):
         if self.start_button.text() == "Start Recording":
             self.start_button.setText("Stop Recording")
             self.plot_widget.start_recording()
+
+            # Get the selected max time from the combo box
+            max_time_text = self.max_time_combobox.currentText()
+            max_time_seconds = int(max_time_text.split()[0])  # Extract the numeric value
+            self.plot_widget.set_max_time(max_time_seconds)
         else:
             self.start_button.setText("Start Recording")
             crucial_data = self.plot_widget.stop_recording()
@@ -95,22 +105,27 @@ class PlotWidget(QWidget):
         self.recording = False
 
         self.plot_line, = self.ax.plot([], [])
-        self.animation = FuncAnimation(self.figure, self.update_plot, blit=True, interval=10, cache_frame_data=True)
+        self.animation = FuncAnimation(self.figure, self.update_plot, blit=True, interval=5, cache_frame_data=True, save_count=1000)
 
         self.ax.set_xlim(0, 1000)  # Assuming 1000 data points
         self.ax.set_ylim(0, 1024)  # Assuming analog values range from 0 to 1023
 
         self.serial_port = "COM5"
         # Create a Serial object to communicate with Arduino
-        self.arduino = serial.Serial(self.serial_port, 115200, timeout=1)
+        self.arduino = serial.Serial(self.serial_port, 57600, timeout=1)
 
         # QTimer to update Arduino data
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_arduino_data)
-        self.timer.start(10)  # Update data every 20 ms
+        self.timer.start(50)  # Update data every X ms
 
         self.peak_value = 0
         self.peak_index = 0
+
+        self.max_time_seconds = 10  # Default max time is 10 seconds
+
+    def set_max_time(self, max_time_seconds):
+        self.max_time_seconds = max_time_seconds
 
     def start_recording(self):
         self.recording = True
@@ -147,7 +162,7 @@ class PlotWidget(QWidget):
 
         # Calculate the gradient from the peak to the next 3 seconds of the signal using np.mean(np.gradient())
         x1 = self.peak_index
-        x2 = self.peak_index + 100  # Assuming 3 seconds with 50 data points per second
+        x2 = self.peak_index + 20  # Assuming 3 seconds with 50 data points per second
         gradient = np.mean(np.gradient(self.data_buffer[x1:x2 + 1]))
         return gradient
 
@@ -155,18 +170,24 @@ class PlotWidget(QWidget):
         try:
             # Read value from pin A2 directly
             data_str = self.arduino.readline().decode('utf-8').strip()
-
+            print(data_str)
+            print("Debug 1")
             if data_str:
                 value = int(data_str)
-                # Update the data buffer if recording
-                if self.recording:
+                print("Debug 2")
+                print(self.recording)
+                print(self.max_time_seconds)
+                # Update the data buffer if recording and within max time
+                if self.recording and (len(self.data_buffer)/50) < (self.max_time_seconds * 50):
                     self.data_buffer = np.roll(self.data_buffer, -1)
                     self.data_buffer[-1] = value
+                    print("Debug 3")
 
                     # Update peak value and index if a new peak is found
                     if value > self.peak_value:
                         self.peak_value = value
                         self.peak_index = len(self.data_buffer) - 1
+                        print("Debug 4")
 
         except KeyboardInterrupt:
             # Close the serial communication when pressing Ctrl+C
@@ -175,7 +196,7 @@ class PlotWidget(QWidget):
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
 
-    def update_plot(self, _):
+    def update_plot(self, frame):
         x = np.arange(len(self.data_buffer))
         y = self.data_buffer
         self.plot_line.set_data(x, y)
