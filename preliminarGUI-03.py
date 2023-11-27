@@ -4,7 +4,8 @@ import threading
 import numpy as np
 import openpyxl
 import matplotlib.pyplot as plt
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QPushButton, QComboBox
+from PyQt5.QtWidgets import QApplication, QMainWindow, QGraphicsView, QGraphicsScene, QWidget, QVBoxLayout, QPushButton, \
+    QComboBox
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject, QMutex
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.animation import FuncAnimation
@@ -92,15 +93,17 @@ class MainWindow(QMainWindow):
 
 class DataUpdater(QObject):
     data_updated = pyqtSignal(np.ndarray)
+    print("debug 1")
 
     def __init__(self, parent=None):
+        print("DataUpdater thread iniciada")
         super().__init__(parent)
         self.peak_value = 0
         self.peak_index = 0
         self.serial_port = "COM5"  # Selecione a porta correta
         self.data_buffer = np.zeros(250)
         self.recording = False
-        self.data_buffer_lock = QMutex()  # Adicione o lock para acesso seguro ao data_buffer
+        self.data_buffer_lock = QMutex()
 
         try:
             self.arduino = serial.Serial(self.serial_port, 57600, timeout=1)
@@ -108,10 +111,6 @@ class DataUpdater(QObject):
             print(f"Erro ao abrir a porta serial: {e}")
             sys.exit(1)
 
-        # Adicione a instância de QTimer como um atributo
-        self.timer = None
-
-    def start_thread(self):
         # Adicione um QTimer para atualizar a interface gráfica
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_data)
@@ -119,24 +118,24 @@ class DataUpdater(QObject):
 
         # Thread para leitura dos dados
         self.thread = threading.Thread(target=self.read_serial_data)
+        print("debug x")
         self.thread.start()
 
     def update_data(self):
-        with self.data_buffer_lock:
-            self.data_updated.emit(self.data_buffer)
+        print("debug 2")
+        self.data_updated.emit(self.data_buffer)
 
     def read_serial_data(self):
         try:
+            print("Thread de leitura iniciada")
             while True:
                 data_str = self.arduino.readline().decode('utf-8').strip()
-                print(data_str)
-                print("debug 3")
+                print(f"Recebido: {data_str}")
 
                 if data_str:
                     try:
                         value = float(data_str)
-                        print(value)
-                        print("debug 4")
+                        print(f"Valor convertido: {value}")
                     except ValueError:
                         print(f"Erro ao converter '{data_str}' para float")
 
@@ -145,7 +144,7 @@ class DataUpdater(QObject):
                         self.data_buffer[-1] = value
 
                     if value > self.peak_value:
-                        print("debug 5 - peak")
+                        print("Pico detectado")
                         self.peak_value = np.max(self.data_buffer)
                         self.peak_index = np.argmax(self.data_buffer)
 
@@ -200,8 +199,7 @@ class LivePlotWidget(QWidget):
     def stop_recording(self):
         self.recording = False
         # Adicione o retorno dos dados cruciais
-        with self.data_buffer_lock:
-            return [np.max(self.data_buffer), np.mean(self.data_buffer), np.std(self.data_buffer)]
+        return [np.max(self.data_buffer), np.mean(self.data_buffer), np.std(self.data_buffer)]
 
     def set_max_time(self, max_time_seconds):
         self.max_time_seconds = max_time_seconds
@@ -214,7 +212,7 @@ def main():
         window = MainWindow()
         data_updater = DataUpdater()
         data_updater.data_updated.connect(window.plot_widget.update_interface)
-        data_updater.start_thread()
+
         window.show()
 
         sys.exit(app.exec_())
