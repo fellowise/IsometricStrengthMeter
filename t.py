@@ -7,15 +7,15 @@ import openpyxl
 import numpy as np
 import serial
 # import matplotlib.pyplot as plt
-from PyQt5.QtCore import QMutex, QMutexLocker
 # from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QPushButton, QComboBox
 # from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
 # Declare q como uma variável global
 q1 = queue.Queue()  # usada para enviar as leituras para a MainWindow
-q1_mutex = QMutex()
+q1_lock = threading.Lock()
+print(q1_lock)
 # q2 = queue.Queue() # usada para enviar as leituras para o LivePlot
-# q2_mutex = QMutex()
+# q2_lock = threading.Lock()
 
 
 def serialReaderThread(port='COM5', recording_time=3):
@@ -36,13 +36,12 @@ def serialReaderThread(port='COM5', recording_time=3):
                     output = ser.readline().decode('utf-8')
                     print(output)
                     # Adicione a saída à fila
-                    with QMutexLocker(q1_mutex):
-                        q1_mutex.lock()
+                    with q1_lock:
+
                         print("Debug 1")
                         q1.put(output)
                         print("Debug 2")
-                        q1_mutex.unlock()
-                        print("Debug 3")
+
                     # with QMutexLocker(q2_mutex):
                     #     q2.put(output)
 
@@ -89,10 +88,10 @@ def main():
 
         start_time = time.time()
         print("Debug 4")
-        while (time.time() - start_time) < max_time_seconds:
+        while (time.time() - start_time) < (max_time_seconds+2):
             if not q1.empty():
                 print("Debug 5")
-                with QMutexLocker(q1_mutex):
+                with q1_lock:
                     output = q1.get()
                     print("Debug 6")
                     var += 1
@@ -101,7 +100,7 @@ def main():
 
         ts.join(timeout=max_time_seconds)
 
-        tw = threading.Thread(target=fileWriting, args=crucial)
+        tw = threading.Thread(target=fileWriting, args=[crucial])
         tw.start()
         tw.join(timeout=10)
 
