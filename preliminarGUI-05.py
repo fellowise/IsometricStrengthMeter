@@ -196,7 +196,27 @@ class LivePlotWidget(QWidget):
                     self.ax.relim()
                     self.ax.autoscale_view()
                     self.canvas.draw()
-
+##
+#        print("Debug fila")
+#        if not q2.empty():
+#            print("Debug 3")
+#            with q2_lock:
+#                print("debug 4")
+#                self.y_values.append(q2.get())
+#                print("Debug 5")
+#                x_values = np.arange(len(self.y_values))
+#                print(x_values)
+#                print(self.y_values)
+#                self.plot_line.set_data(x_values, self.y_values)
+#                print("Debug 6")
+#                if len(self.y_values) > 5:
+#                    self.ax.relim()
+#                    print("Debug 7")
+#                    self.ax.autoscale_view()
+#                    print("Debug 8")
+#                    self.canvas.draw()
+#                    print("Debug 9")
+##
 
 def main():
     try:
