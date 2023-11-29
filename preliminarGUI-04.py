@@ -11,8 +11,7 @@ from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject, QMutex, QMutexLocker
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
 # Declare q as uma variável global
-q1 = queue.Queue() # usada para enviar as leituras para a MainWindow
-q2 = queue.Queue() # usada para enviar as leituras para o LivePlot
+q = queue.Queue()
 
 
 class MainWindow(QMainWindow):
@@ -52,7 +51,7 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(button_widget)
 
         # Create a widget with the plot on the right side
-        self.plot_widget = LivePlotWidget()
+        # self.plot_widget = LivePlotWidget()
 
         # Add the plot to the main layout
         main_layout.addWidget(self.plot_widget)
@@ -63,26 +62,6 @@ class MainWindow(QMainWindow):
     def toggle_recording(self):
         if self.start_button.text() == "Start Recording":
             self.start_button.setText("Stop Recording")
-            max_time_text = self.max_time_combobox.currentText()
-            max_time_seconds = int(max_time_text.split()[0])
-            var = 0
-            crucial = []
-            ts = threading.Thread(target=SerialReaderThread, args=('COM5', max_time_seconds))
-            print("First Debug")
-            ts.start()
-            start_time = time.time()
-
-            while (time.time() - start_time) < max_time_seconds:
-                output = q1.get()
-                var += 1
-                crucial[var] = output
-                with open("output.txt", "a+") as f:
-                    f.write(crucial, "\t", var)
-                    f.write("\n")  # Se quiser separar as saídas por novas linhas
-            ts.join(timeout=max_time_seconds)
-
-            if ts.is_alive():
-                print("Thread ainda está ativa. Encerrando de maneira segura...")
 
         else:
             self.start_button.setText("Start Recording")
@@ -94,34 +73,38 @@ class MainWindow(QMainWindow):
         file_thread.join(timeout=3)
 
 
-def SerialReaderThread(port='COM5', recording_time=3):
-        ser = serial.Serial(port, baudrate=57600, timeout=5)
-        recording = True
-        stopped = False
-        max_recording_time = recording_time
+class SerialReaderThread(threading.Thread):
+    def __init__(self, parent=None, port='COM5', recording_time=3):
+        super().__init__(parent)
+        self.ser = serial.Serial(port, baudrate=57600, timeout=5)
+        self.recording = True
+        self.stopped = False
+        self.max_recording_time = recording_time
 
-        while not stopped:
+    def run(self):
+
+        while not self.stopped:
 
             try:
-                recording = True
+                self.recording = True
                 start_time = time.time()
-                print("Second Debug")
 
-                while recording and (time.time() - start_time) < max_recording_time:
+                while self.recording and (time.time() - start_time) < self.max_recording_time:
                     # Read output from ser
-                    output = ser.readline().decode('utf-8')
-                    print(time.time())
+                    output = self.ser.readline().decode('utf-8')
                     print(output)
                     # Adicione a saída à fila
-                    q1.put(output)
-                    q2.put(output)
+                    q.put(output)
 
-                recording = False
-                stopped = True
-                print("Recording stopped")
+                self.stop_recording()
 
             except serial.SerialException as e:
                 print(f"Erro na porta serial: {e}")
+
+    def stop_recording(self):
+        self.recording = False
+        self.stopped = True
+        print("Recording stopped")
 
 
 class FileWriting(threading.Thread):
@@ -162,35 +145,25 @@ class FileWriting(threading.Thread):
         print("Recording stopped")
 
 
-class LivePlotWidget(QWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-
-        self.figure, self.ax = plt.subplots()
-        self.canvas = FigureCanvas(self.figure)
-
-        layout = QHBoxLayout(self)
-        layout.addWidget(self.canvas)
-        self.plot_line, = self.ax.plot([], [])
-
-    def update_plot(self):
-        while True:
-            if not q2.empty():
-                y_values = q2.get()
-                x_values = np.arange(len(self.y_value))
-                self.plot_line.set_data(x_values, y_values)
-                self.ax.relim()
-                self.ax.autoscale_view()
-                self.canvas.draw()
-
-
 def main():
     try:
+        data_reader = SerialReaderThread()
+
+        # Inicie as threads
+        data_reader.start()
+
         app = QApplication(sys.argv)
         window = MainWindow()
 
         window.show()
         sys.exit(app.exec())
+
+        # Aguarde que as threads terminem (ou defina algum mecanismo para encerrar as threads quando necessário)
+        data_reader.join(timeout=3)
+
+
+        if thread.is_alive():
+            print("Thread ainda está ativa. Encerrando de maneira segura...")
 
     except Exception as e:
         print(f"Erro na execução: {e}")

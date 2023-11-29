@@ -181,7 +181,7 @@ class LivePlotWidget(QWidget):
         self.figure, self.ax = plt.subplots()
         self.canvas = FigureCanvas(self.figure)
 
-        layout = QVBoxLayout(self)
+        layout = QHBoxLayout(self)
         layout.addWidget(self.canvas)
 
         self.data_buffer = np.zeros(100)
