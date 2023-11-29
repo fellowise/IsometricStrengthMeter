@@ -154,7 +154,7 @@ class FileWriting(threading.Thread):
                 self.recording = True
                 # start_time = time.time()
                 with QMutexLocker(q1_mutex):
-                    self.crucial.extend(q1.queue)
+                    self.crucial.extend(q1.get())
                 # while self.recording and (time.time() - start_time) < self.max_recording_time:
                     # output = q.get()  # Espera até que um item esteja disponível na fila
 
