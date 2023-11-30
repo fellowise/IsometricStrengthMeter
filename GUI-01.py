@@ -7,8 +7,6 @@ import openpyxl
 import numpy as np
 import serial
 import matplotlib.pyplot as plt
-
-from matplotlib.animation import FuncAnimation
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QPushButton, QComboBox
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
@@ -16,9 +14,6 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 q1 = queue.Queue()  # usada para enviar as leituras para a MainWindow
 q1_lock = threading.Lock()
 print(q1_lock)
-# q2 = queue.Queue() # usada para enviar as leituras para o LivePlot
-# q2_lock = threading.Lock()
-# print(q2_lock)
 
 
 class MainWindow(QMainWindow):
@@ -47,7 +42,7 @@ class MainWindow(QMainWindow):
 
         # Connect buttons to functions
         self.start_button.clicked.connect(self.toggle_recording)
-        self.export_button.clicked.connect(lambda: self.export_to_excel(crucial=[]))
+        self.export_button.clicked.connect(self.export_to_excel)
 
         # Add buttons to the widget's layout
         button_layout.addWidget(self.start_button)
@@ -67,21 +62,23 @@ class MainWindow(QMainWindow):
         main_widget.setLayout(main_layout)
 
         self.crucial = []
+        self.recording_time = 3    # 3 segundos como default
 
     def toggle_recording(self):
         if self.start_button.text() == "Start Recording":
             self.start_button.setText("Recording")
+            self.crucial = []
             max_time_text = self.max_time_combobox.currentText()
             max_time_seconds = int(max_time_text.split()[0])
-            max_time_seconds += 2
+            self.recording_time = 5 + max_time_seconds
             var = 0
 
-            ts = threading.Thread(target=serialReaderThread, args=('COM5', max_time_seconds))
+            ts = threading.Thread(target=serialReaderThread, args=('COM6', self.recording_time))
             ts.start()
 
             start_time = time.time()
 
-            while (time.time() - start_time) < max_time_seconds:
+            while (time.time() - start_time) < self.recording_time:
                 if not q1.empty():
 
                     with q1_lock:
@@ -89,10 +86,10 @@ class MainWindow(QMainWindow):
                         var += 1
                         print(output, 'and', var)
                         self.crucial.append(output)
-                time.sleep(0.01)
-                print("Debug LivePlot")
-                self.plot_widget.update_plot(self.crucial)
-                print("Debug LivePlot 2")
+                # time.sleep(0.02)
+            print("Debug LivePlot")
+            self.plot_widget.update_plot(self.crucial, self.recording_time)
+            print("Debug LivePlot 2")
 
             ts.join(timeout=max_time_seconds)
 
@@ -101,8 +98,9 @@ class MainWindow(QMainWindow):
 
             self.start_button.setText("Start Recording")
 
-    def export_to_excel(self, patient):
-        tw = threading.Thread(target=fileWriting, args=[self.crucial])
+    def export_to_excel(self):
+        recording_time = self.recording_time - 5
+        tw = threading.Thread(target=fileWriting, args=[self.crucial, recording_time])
         tw.start()
         tw.join(timeout=10)
 
@@ -111,10 +109,14 @@ class MainWindow(QMainWindow):
 
         with open("output.txt", "a+") as f:
             for position, value in enumerate(self.crucial):
-                f.write(f"{value}\t{position}\n")
+                max_time_text = self.max_time_combobox.currentText()
+                max_time_seconds = int(max_time_text.split()[0])
+                factor = max_time_seconds/max(position)
+                test_time = position*factor
+                f.write(f"{test_time}\t{value}\n")
 
 
-def serialReaderThread(port='COM6', recording_time=3):
+def serialReaderThread(port='COM5', recording_time=3):
         ser = serial.Serial(port, baudrate=57600, timeout=5)
         recording = True
         stopped = False
@@ -134,7 +136,6 @@ def serialReaderThread(port='COM6', recording_time=3):
                     # Adicione a saída à fila
                     with q1_lock:
                         q1.put(output)
-                        print(f"Queue {output}")
 
                 end_time = time.perf_counter()
                 elapsed_time = end_time - start_time2
@@ -147,23 +148,23 @@ def serialReaderThread(port='COM6', recording_time=3):
                 print(f"Erro na porta serial: {e}")
 
 
-def fileWriting(crucial_data):
+def fileWriting(crucial_data, recording_time):
     try:
-        stopped = False
-        # max_recording_time = recording_time
         crucial = crucial_data
 
         workbook = openpyxl.Workbook()
         sheet = workbook.active
+        print(len(crucial_data))
+        factor = recording_time / len(crucial_data)
 
         for position, value in enumerate(crucial):
-            sheet.append([position, value])
+            test_time = position*factor
+            sheet.append([test_time, value])
 
         file_path = r"D:\UDESC\TCC\Programas\GUIpreliminar\dados_do_paciente.xlsx"
         workbook.save(file_path)
         print(f"Data exported to Excel file: {file_path}")
 
-        stopped = True
     except Exception as e:
         print(f"Erro durante a escrita do arquivo: {e}")
 
@@ -178,18 +179,57 @@ class LivePlotWidget(QWidget):
         layout = QHBoxLayout(self)
         layout.addWidget(self.canvas)
         self.plot_line, = self.ax.plot([], [])
-        self.y_values = [0, 0, 0]
-        self.animation = FuncAnimation(self.figure, lambda: self.update_plot(interval=20, crucial=None), save_count=100, cache_frame_data=True)  # Atualiza a cada 20ms
+        self.y_values = []
+        self.threshold = 0.4
+        plt.xlabel('Time (s)')
+        plt.ylabel('Strength (kgf)')
 
-    def update_plot(self, frame, crucial):
-        if crucial is not None:
-            self.y_values = crucial
-            x_values = np.arange(len(self.y_values))
-            print(self.y_values)
-            print(x_values)
+    def update_plot(self, crucial, recording_time):
+        self.y_values = crucial
+        x_index = np.arange(len(self.y_values))
+        factor = (recording_time-5)/max(x_index)
+        x_values = x_index*factor
+        print(self.y_values)
+        print(x_values)
 
         if len(self.y_values) > 5:
             self.plot_line.set_data(x_values, self.y_values)
+
+            # Lógica de Pico
+            peak_index = np.argmax(self.y_values)
+            peak_value = self.y_values[peak_index]
+            peak_time = x_values[peak_index]
+
+            plt.scatter(peak_time, peak_value, color='red', label='Max Strength')
+            plt.annotate(f'Max Strength: {peak_value:.2f}',
+                         xy=(x_values[peak_index], peak_value),
+                         xytext=(x_values[peak_index]+0.1, peak_value+0.1))
+
+            # Limite inferior e tempo de reação
+            print("Vamo")
+            plt.axhline(y=self.threshold, color='black', linestyle='--', label='Threshold')
+            print("Pra")
+            reactions = []
+            for i, value in enumerate(self.y_values):
+                if value > self.threshold:
+                    reactions.append(i)
+
+            print(reactions)
+            reaction_index = min(reactions)
+            print("Janta")
+            reaction_time = x_values[reaction_index]
+            print("abalados")
+            print(reaction_time)
+            reaction_value = self.y_values[reaction_index]
+            print("ou campeões")
+            print(reaction_value)
+            plt.scatter(reaction_time, reaction_value, color='green', label='Reaction Time')
+            print("Não tem")
+            plt.annotate(f'Reaction Time: {reaction_value:.2f}',
+                         xy=(x_values[reaction_index],reaction_value),
+                         xytext=(x_values[reaction_index]+0.1,reaction_value+0.1))
+            print("meio termo")
+
             self.ax.relim()
             self.ax.autoscale_view()
             self.canvas.draw()
