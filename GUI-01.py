@@ -87,9 +87,9 @@ class MainWindow(QMainWindow):
                         print(output, 'and', var)
                         self.crucial.append(output)
                 # time.sleep(0.02)
-            print("Debug LivePlot")
+            # print("Debug LivePlot")
             self.plot_widget.update_plot(self.crucial, self.recording_time)
-            print("Debug LivePlot 2")
+            # print("Debug LivePlot 2")
 
             ts.join(timeout=max_time_seconds)
 
@@ -121,6 +121,7 @@ def serialReaderThread(port='COM5', recording_time=3):
         recording = True
         stopped = False
         max_recording_time = recording_time
+        # ser.write(b'r')
 
         while not stopped:
 
@@ -131,8 +132,9 @@ def serialReaderThread(port='COM5', recording_time=3):
 
                 while recording and (time.time() - start_time) < max_recording_time:
                     # Read output from ser
+                    # print(ser.readline().decode('utf-8'))
                     output = float(ser.readline().decode('utf-8'))
-                    print(output)
+                    # print(output)
                     # Adicione a saída à fila
                     with q1_lock:
                         q1.put(output)
@@ -154,7 +156,7 @@ def fileWriting(crucial_data, recording_time):
 
         workbook = openpyxl.Workbook()
         sheet = workbook.active
-        print(len(crucial_data))
+        # print(len(crucial_data))
         factor = recording_time / len(crucial_data)
 
         for position, value in enumerate(crucial):
@@ -201,34 +203,73 @@ class LivePlotWidget(QWidget):
             peak_time = x_values[peak_index]
 
             plt.scatter(peak_time, peak_value, color='red', label='Max Strength')
-            plt.annotate(f'Max Strength: {peak_value:.2f}',
+            plt.annotate(f'Max Strength: {peak_value:.2f} kgf',
                          xy=(x_values[peak_index], peak_value),
                          xytext=(x_values[peak_index]+0.1, peak_value+0.1))
 
             # Limite inferior e tempo de reação
-            print("Vamo")
             plt.axhline(y=self.threshold, color='black', linestyle='--', label='Threshold')
-            print("Pra")
             reactions = []
             for i, value in enumerate(self.y_values):
                 if value > self.threshold:
                     reactions.append(i)
 
-            print(reactions)
+
             reaction_index = min(reactions)
-            print("Janta")
             reaction_time = x_values[reaction_index]
-            print("abalados")
-            print(reaction_time)
             reaction_value = self.y_values[reaction_index]
-            print("ou campeões")
+            print("Vamo pra janta")
+            print(reactions)
+            print(reaction_time)
             print(reaction_value)
             plt.scatter(reaction_time, reaction_value, color='green', label='Reaction Time')
-            print("Não tem")
-            plt.annotate(f'Reaction Time: {reaction_value:.2f}',
-                         xy=(x_values[reaction_index],reaction_value),
-                         xytext=(x_values[reaction_index]+0.1,reaction_value+0.1))
-            print("meio termo")
+            plt.annotate(f'Reaction Time: {reaction_time:.2f} s',
+                         xy=(reaction_time, reaction_value),
+                         xytext=(reaction_time+0.1, reaction_value+0.1))
+
+            # Taxa de Desenvolvimento
+            x_development = [reaction_time, peak_time]
+            y_development = [reaction_value, peak_value]
+            development_rate = (peak_value-reaction_value)/(peak_time-reaction_time)
+            plt.plot(x_development, y_development, linestyle='--', color='gray', linewidth=2, label='Development Rate')
+            plt.annotate(f'Development Rate: {development_rate:.2f} kgf/s',
+                         xy=(x_values[peak_index], peak_value),
+                         xytext=(x_values[peak_index] + 0.1, np.mean(np.array([peak_value, reaction_value]))))
+
+            # Taxa de declínio
+            # tem que usar um ponto flutuante entre o pico e o fim do sinal
+            # print("Vamo")
+            # print("Pra")
+            # print("Janta")
+            # print("abalados")
+            # print("ou campeões")
+            # print("Não tem")
+            # print("meio termo")
+            declines = []
+            decline_time = []
+            decline_values = []
+            desired_fit = 10
+            for i, value in enumerate(self.y_values):
+                if i > peak_index and i+desired_fit < len(x_values):
+                    declines.append(i)
+                    decline_time.append(x_values[i])
+                    decline_values.append(value)
+
+            print(declines)
+            print(decline_time)
+            print(decline_values)
+            linear_regression = np.polyfit(decline_time, decline_values, 1)
+            print(linear_regression)
+            decline_coefficients = np.poly1d(linear_regression)
+            decline_plot_value = decline_coefficients(decline_time)
+            print(min(decline_values))
+            print(min(decline_time))
+            decline_rate = (min(decline_values)-peak_value)/(max(decline_time)-peak_time)
+            # plt.scatter(decline_time, decline_value, label='Decline Rate')
+            plt.plot(decline_time, decline_plot_value, color='red', linestyle='--', label='Decline Rate Prediction')
+            plt.annotate(f'Decline Rate: {decline_rate:.2f} kgf/s',
+                         xy=(x_values[peak_index], peak_value),
+                         xytext=(max(decline_time)-1, np.mean(np.array([peak_value, min(decline_values)]))))
 
             self.ax.relim()
             self.ax.autoscale_view()
