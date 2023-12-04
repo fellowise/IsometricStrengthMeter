@@ -104,8 +104,8 @@ class MainWindow(QMainWindow):
         tw.start()
         tw.join(timeout=10)
 
-        if os.path.exists("output.txt"):
-            os.remove("output.txt")
+        # if os.path.exists("output.txt"):
+        #     os.remove("output.txt")
 
         with open("output.txt", "a+") as f:
             for position, value in enumerate(self.crucial):
@@ -150,25 +150,25 @@ def serialReaderThread(port='COM5', recording_time=3):
                 print(f"Erro na porta serial: {e}")
 
 
-def fileWriting(crucial_data, recording_time):
-    try:
-        crucial = crucial_data
+    def fileWriting(crucial_data, recording_time):
+        try:
+            crucial = crucial_data
 
-        workbook = openpyxl.Workbook()
-        sheet = workbook.active
-        # print(len(crucial_data))
-        factor = recording_time / len(crucial_data)
+            workbook = openpyxl.Workbook()
+            sheet = workbook.active
+            # print(len(crucial_data))
+            factor = recording_time / len(crucial_data)
 
-        for position, value in enumerate(crucial):
-            test_time = position*factor
-            sheet.append([test_time, value])
+            for position, value in enumerate(crucial):
+                test_time = position*factor
+                sheet.append([test_time, value])
 
-        file_path = r"D:\UDESC\TCC\Programas\GUIpreliminar\dados_do_paciente.xlsx"
-        workbook.save(file_path)
-        print(f"Data exported to Excel file: {file_path}")
+            file_path = r"D:\UDESC\TCC\Programas\GUIpreliminar\dados_do_paciente.xlsx"
+            workbook.save(file_path)
+            print(f"Data exported to Excel file: {file_path}")
 
-    except Exception as e:
-        print(f"Erro durante a escrita do arquivo: {e}")
+        except Exception as e:
+            print(f"Erro durante a escrita do arquivo: {e}")
 
 
 class LivePlotWidget(QWidget):
@@ -237,14 +237,6 @@ class LivePlotWidget(QWidget):
                          xytext=(x_values[peak_index] + 0.1, np.mean(np.array([peak_value, reaction_value]))))
 
             # Taxa de declínio
-            # tem que usar um ponto flutuante entre o pico e o fim do sinal
-            # print("Vamo")
-            # print("Pra")
-            # print("Janta")
-            # print("abalados")
-            # print("ou campeões")
-            # print("Não tem")
-            # print("meio termo")
             declines = []
             decline_time = []
             decline_values = []
